@@ -1,4 +1,4 @@
-CONFIGO
+# CONFIGO
 
 Загрузка конфиг файла из флага -config
 
