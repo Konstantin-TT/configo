@@ -17,6 +17,20 @@ type App struct {
 	Version string `yaml:"version" env-required:"true"`
 }
 
+type Logger struct {
+	Dir           string `yaml:"dir" env-default:"logs"`
+	MaxSize       int    `yaml:"maxSize" env-default:"10"`
+	MaxBackups    int    `yaml:"maxBackups" env-default:"3"`
+	MaxAge        int    `yaml:"maxAge" env-default:"365"`
+	Compress      bool   `yaml:"compress" env-default:"true"`
+	RotationTime  string `yaml:"rotationTime" env-default:"24h"`
+	ConsoleLevel  int    `yaml:"consoleLevel" env-default:"0"`
+	FileLevel     int    `yaml:"fileLevel" env-default:"0"`
+	EnableConsole bool   `yaml:"enableConsole" env-default:"true"`
+	EnableFile    bool   `yaml:"enableFile" env-default:"true"`
+	TimeFormat    string `yaml:"timeFormat" env-default:"2006-01-02T15:04:05.000Z07:00"`
+}
+
 type Database struct {
 	Type          string        `yaml:"type" env-required:"true"`
 	Host          string        `yaml:"host" env-required:"true"`
@@ -34,6 +48,23 @@ type Redis struct {
 	Host string `yaml:"host" env-required:"true"`
 	Port int    `yaml:"port" env-required:"true"`
 	Db   int    `yaml:"db" `
+}
+
+type Sentry struct {
+	Host string `yaml:"host" env-required:"true"`
+	Key  string `yaml:"key" env-required:"true"`
+}
+
+type Service struct {
+	Port uint16 `yaml:"port" env-required:"true"`
+}
+
+type S3 struct {
+	Endpoint  string `yaml:"endpoint" env-required:"true"`
+	Region    string `yaml:"region" env-required:"true"`
+	AccessKey string `yaml:"accessKey" env-required:"true"`
+	SecretKey string `yaml:"secretKey" env-required:"true"`
+	ProxyUrl  string `yaml:"proxyUrl"`
 }
 
 type KafkaProducer struct {
@@ -71,6 +102,87 @@ type KafkaTopics struct {
 	List              []string `yaml:"list" env-separator:"," env-required:"true"`
 	NumPartitions     int      `yaml:"numPartitions" env-required:"true"`
 	ReplicationFactor int      `yaml:"replicationFactor" env-required:"true"`
+}
+
+type Rest struct {
+	Host               string                 `yaml:"host" env-default:"0.0.0.0"`                // Хост сервера
+	Port               string                 `yaml:"port" env-default:"8080"`                   // Порт сервера
+	ReadTimeout        time.Duration          `yaml:"readTimeout" env-default:"10s"`             // Таймаут чтения всего запроса
+	WriteTimeout       time.Duration          `yaml:"writeTimeout" env-default:"10s"`            // Таймаут записи всего ответа
+	IdleTimeout        time.Duration          `yaml:"idleTimeout" env-default:"60s"`             // Таймаут простоя keep-alive соединения
+	HandlerTimeout     time.Duration          `yaml:"handlerTimeout" env-default:"15s"`          // Таймаут на обработку одного запроса (для middleware.Timeout)
+	ShutdownTimeout    time.Duration          `yaml:"shutdownTimeout" env-default:"15s"`         // Таймаут на корректное завершение работы
+	BaseURL            string                 `yaml:"baseURL"`                                   // Полный базовый URL сервера (для генерации ссылок)
+	BasePath           string                 `yaml:"basePath" env-default:"/"`                  // Базовый путь для всех маршрутов API (например, "/api/v1")
+	MaxRequestBodySize int64                  `yaml:"maxRequestBodySize" env-default:"10485760"` // Максимальный размер тела запроса в байтах (10MB)
+	Compression        RestCompression        `yaml:"compression"`
+	CORS               RestCORS               `yaml:"cors"`
+	TLS                RestTLS                `yaml:"tls"`
+	Profiling          RestProfiling          `yaml:"profiling"`
+	RateLimit          RestRateLimitConfig    `yaml:"rateLimit"`
+	SecurityHeaders    RestSecurityHeaders    `yaml:"securityHeaders"`
+	StaticFiles        []RestFilesConfigEntry `yaml:"staticFiles"`                      // Массив для конфигурации раздачи нескольких наборов статики
+	TrustedProxies     []string               `yaml:"trustedProxies" env-separator:","` // Список CIDR доверенных прокси
+}
+
+type RestCompression struct {
+	Enabled bool `yaml:"enabled" env-default:"false"`
+	Level   int  `yaml:"level" env-default:"-1"` // -1 соответствует flate.DefaultCompression
+}
+
+type RestCORS struct {
+	Enabled            bool          `yaml:"enabled" env-default:"false"`
+	AllowedOrigins     []string      `yaml:"allowedOrigins" env-separator:"," env-default:""` // По умолчанию пусто, можно установить ["*"] если нужно разрешить всем
+	AllowedMethods     []string      `yaml:"allowedMethods" env-separator:"," env-default:"GET,POST,PUT,DELETE,OPTIONS"`
+	AllowedHeaders     []string      `yaml:"allowedHeaders" env-separator:"," env-default:"Origin,Content-Type,Accept,Authorization"`
+	ExposedHeaders     []string      `yaml:"exposedHeaders" env-separator:"," env-default:""`
+	AllowCredentials   bool          `yaml:"allowCredentials" env-default:"false"`
+	MaxAge             time.Duration `yaml:"maxAge" env-default:"300s"` // 5 минут
+	OptionsPassthrough bool          `yaml:"optionsPassthrough" env-default:"false"`
+	Debug              bool          `yaml:"debug" env-default:"false"`
+}
+
+type RestTLS struct {
+	Enabled               bool     `yaml:"enabled" env-default:"false"`
+	CertFile              string   `yaml:"certFile"`
+	KeyFile               string   `yaml:"keyFile"`
+	AutoCert              bool     `yaml:"autoCert" env-default:"false"`
+	AutoCertCacheDir      string   `yaml:"autoCertCacheDir" env-default:".autocert"`
+	AutoCertHostWhitelist []string `yaml:"autoCertHostWhitelist" env-separator:"," env-default:""`
+}
+
+type RestProfiling struct {
+	Enabled bool   `yaml:"enabled" env-default:"false"`
+	Prefix  string `yaml:"prefix" env-default:"/debug/pprof"`
+}
+
+type RestRateLimitConfig struct {
+	Enabled         bool          `yaml:"enabled" env-default:"false"`
+	RPS             float64       `yaml:"rps" env-default:"100"`
+	Burst           int           `yaml:"burst" env-default:"20"`
+	CleanupInterval time.Duration `yaml:"cleanupInterval" env-default:"1m"`
+}
+
+type RestSecurityHeaders struct {
+	Enabled               bool   `yaml:"enabled" env-default:"true"`
+	HSTSMaxAgeSeconds     int    `yaml:"hstsMaxAgeSeconds" env-default:"31536000"` // 1 год
+	HSTSIncludeSubdomains bool   `yaml:"hstsIncludeSubdomains" env-default:"true"`
+	HSTSPreload           bool   `yaml:"hstsPreload" env-default:"false"`
+	ContentTypeNosniff    bool   `yaml:"contentTypeNosniff" env-default:"true"`
+	FrameOptions          string `yaml:"frameOptions" env-default:"SAMEORIGIN"` // "DENY" или "SAMEORIGIN"
+	XSSProtection         string `yaml:"xssProtection" env-default:"0"`         // "0" (CSP предпочтительнее), "1", "1; mode=block"
+	ContentSecurityPolicy string `yaml:"contentSecurityPolicy" env-default:"default-src 'self'"`
+	ReferrerPolicy        string `yaml:"referrerPolicy" env-default:"strict-origin-when-cross-origin"`
+	PermissionsPolicy     string `yaml:"permissionsPolicy" env-default:""` // Пример: "geolocation=(), microphone=()"
+}
+
+type RestFilesConfigEntry struct {
+	Enabled   bool          `yaml:"enabled" env-default:"false"`
+	URLPrefix string        `yaml:"urlPrefix"` // Должен заканчиваться на "/"
+	FSRoot    string        `yaml:"fsRoot"`
+	CacheTTL  time.Duration `yaml:"cacheTtl" env-default:"1h"`
+	IndexFile string        `yaml:"indexFile" env-default:"index.html"`
+	SPA       bool          `yaml:"spa" env-default:"false"`
 }
 
 type GrpcServer struct {
@@ -157,6 +269,83 @@ type GrpcClient struct {
 type Grpc struct {
 	Server  GrpcServer   `yaml:"server"`
 	Clients []GrpcClient `yaml:"clients"`
+}
+
+type Ws struct {
+	// Включен ли WebSocket сервер
+	Enabled bool `yaml:"enabled" env-default:"true"`
+	// Хост, на котором будет слушать WebSocket сервер (например, "0.0.0.0" для всех интерфейсов)
+	Host string `yaml:"host" env-default:"0.0.0.0"`
+	// Порт, на котором будет слушать WebSocket сервер
+	Port int `yaml:"port" env-required:"true"`
+	// Путь эндпоинта для WebSocket соединений (например, "/ws")
+	Path string `yaml:"path" env-default:"/ws"`
+
+	// TLS конфигурация
+	EnableTLS bool   `yaml:"enableTLS" env-default:"false"`
+	CertFile  string `yaml:"certFile" env:"WS_CERT_FILE"` // Путь к файлу SSL сертификата
+	KeyFile   string `yaml:"keyFile" env:"WS_KEY_FILE"`   // Путь к файлу приватного ключа SSL
+
+	// Параметры соединения
+	// Таймаут для WebSocket handshake
+	HandshakeTimeout time.Duration `yaml:"handshakeTimeout" env-default:"5s"`
+	// Размер буфера чтения для каждого соединения (в байтах)
+	ReadBufferSize int `yaml:"readBufferSize" env-default:"4096"`
+	// Размер буфера записи для каждого соединения (в байтах)
+	WriteBufferSize int `yaml:"writeBufferSize" env-default:"4096"`
+	// Максимальный размер одного входящего сообщения (в байтах)
+	MaxMessageReadSize int64 `yaml:"maxMessageReadSize" env-default:"65536"` // 64KB
+
+	// Сжатие (permessage-deflate)
+	// Включить сжатие сообщений
+	EnableCompression bool `yaml:"enableCompression" env-default:"false"`
+	// Уровень сжатия (если включено). -1 для значения по умолчанию (обычно это 6), 0 - без сжатия, 1-9 - уровни сжатия.
+	CompressionLevel int `yaml:"compressionLevel" env-default:"-1"`
+
+	// Безопасность и лимиты
+	// Список разрешенных origins для CORS. Пустой список или ["*"] для разрешения всех.
+	// Пример: "http://localhost:3000,https://example.com"
+	AllowedOrigins []string `yaml:"allowedOrigins" env-separator:"," env-default:""`
+	// Поддерживаемые WebSocket субпротоколы. Клиент может запросить один из них.
+	// Пример: "chat,json-rpc"
+	Subprotocols []string `yaml:"subprotocols" env-separator:"," env-default:""`
+	// Максимальное общее количество активных WebSocket соединений (0 - без ограничений)
+	MaxConnections int `yaml:"maxConnections" env-default:"0"`
+	// Максимальное количество соединений с одного IP-адреса
+	MaxConnectionsPerIP int `yaml:"maxConnectionsPerIP" env-required:"true"`
+
+	// Корректное завершение работы
+	// Таймаут для ожидания завершения активных соединений перед принудительной остановкой сервера
+	ShutdownTimeout time.Duration `yaml:"shutdownTimeout" env-default:"10s"`
+
+	// Конфигурация сессии WebSocket
+	Session WsSession `yaml:"session"`
+}
+
+// WsSession конфигурация для индивидуальной WebSocket сессии
+type WsSession struct {
+	// Ping/Pong для поддержания активности соединения (инициируется сервером)
+	// Включить отправку ping-сообщений сервером
+	EnablePing bool `yaml:"enablePing" env-default:"true"`
+	// Интервал, с которым сервер отправляет ping-сообщения клиенту, если от клиента нет активности.
+	PingInterval time.Duration `yaml:"pingInterval" env-default:"30s"`
+	// Таймаут ожидания pong-сообщения от клиента после отправки ping. Если pong не получен, соединение закрывается.
+	PongTimeout time.Duration `yaml:"pongTimeout" env-default:"10s"`
+
+	// Максимальное время простоя соединения (без обмена данными, включая контрольные фреймы, если они неактивны или нечасты).
+	// Сервер может закрыть соединение, если оно простаивает дольше этого времени. 0 - отключить проверку.
+	MaxIdleTime time.Duration `yaml:"maxIdleTime" env-default:"60s"`
+
+	// Буферизация исходящих сообщений (от сервера к клиенту)
+	// Размер буфера (количество сообщений) для исходящих сообщений для одного клиента.
+	OutboundMessageBufferSize int `yaml:"outboundMessageBufferSize" env-default:"256"`
+	// Таймаут на запись одного сообщения клиенту. Предотвращает блокировку, если клиент медленно читает.
+	WriteTimeout time.Duration `yaml:"writeTimeout" env-default:"5s"`
+
+	// Максимальное время жизни сессии
+	// Максимальная продолжительность существования WebSocket сессии, независимо от активности.
+	// 0 - без ограничения времени жизни.
+	MaxLifetime time.Duration `yaml:"maxLifetime" env-default:"0s"`
 }
 
 func MustLoad[TConfig Config]() (*TConfig, *Env) {
